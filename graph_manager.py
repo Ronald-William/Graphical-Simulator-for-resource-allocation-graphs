@@ -31,7 +31,12 @@ class GraphManager:
             self.allocations[process][resource] = self.allocations[process].get(resource, 0) + 1
             self.graph.add_edge(resource, process)  # Allocation edge
             return "allocated"
+
+        # If no available instances, add a request edge
+        self.graph.add_edge(process, resource, style='dashed', color='orange')
         return "not enough instances"
+
+
 
     def release_resource(self, resource, process):
         if resource in self.allocations.get(process, {}) and self.allocations[process][resource] > 0:
@@ -39,13 +44,15 @@ class GraphManager:
             self.allocations[process][resource] -= 1
             if self.allocations[process][resource] == 0:
                 del self.allocations[process][resource]
-                self.graph.remove_edge(resource, process)  # Remove edge when released
+                self.graph.remove_edge(resource, process)  # Remove allocation edge
+
+            # Check if any process is waiting for this resource
+            waiting_processes = [p for p in self.graph.predecessors(resource) 
+                             if self.graph.edges[p, resource].get('style') == 'dashed']
+            if waiting_processes:
+                next_process = waiting_processes[0]  # Pick the first waiting process
+                self.graph.remove_edge(next_process, resource)  # Remove request edge
+                self.allocate_resource(next_process, resource)  # Allocate resource
+
             return True
         return False
-
-    def detect_deadlock(self):
-        try:
-            cycle = nx.find_cycle(self.graph, orientation="original")
-            return [edge[0] for edge in cycle]
-        except nx.NetworkXNoCycle:
-            return None
