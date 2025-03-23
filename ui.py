@@ -71,14 +71,20 @@ class ResourceAllocationSimulator(QMainWindow):
         if not processes or not resources:
             QMessageBox.warning(self, "Error", "Create at least one process and one resource")
             return
-        
+    
         process, ok = QInputDialog.getItem(self, "Select Process", "Process:", processes, 0, False)
         if not ok: return
         resource, ok = QInputDialog.getItem(self, "Select Resource", "Resource:", resources, 0, False)
         if not ok: return
 
         status = self.graph_manager.allocate_resource(process, resource)
-        QMessageBox.information(self, "Allocation", f"{resource} {status} to {process}")
+        if status == "not enough instances":
+            QMessageBox.information(self, "Request", f"{process} waiting for {resource}")
+        else:
+            QMessageBox.information(self, "Allocation", f"{resource} {status} to {process}")
+    
+        self.show_graph()  # Refresh the graph immediately
+
 
     def release_resource(self):
         allocations = [(u, v) for u, v in self.graph_manager.graph.edges if u.startswith("R") and v.startswith("P")]
@@ -96,29 +102,52 @@ class ResourceAllocationSimulator(QMainWindow):
             QMessageBox.information(self, "Released", f"Released {resource} from {process}")
 
     def detect_deadlock(self):
-        cycle = self.graph_manager.detect_deadlock()
-        if cycle:
-            QMessageBox.critical(self, "Deadlock Detected!", f"Deadlock cycle: {cycle}")
-        else:
-            QMessageBox.information(self, "No Deadlock", "System is safe")
+        try:
+            cycles = list(nx.simple_cycles(self.graph_manager.graph))  # Find all cycles
+            if cycles:
+                QMessageBox.critical(self, "Deadlock Detected!", f"Deadlock cycles: {cycles}")
+            else:
+                QMessageBox.information(self, "No Deadlock", "System is safe")
+        except nx.NetworkXNoCycle:
+            if any(e for e in self.graph_manager.graph.edges if e[0].startswith("P")):
+                QMessageBox.warning(self, "Warning", "Potential deadlock (requests exist but no cycle)")
+            else:
+                QMessageBox.information(self, "No Deadlock", "System is safe")
+
+
 
     def show_graph(self):
         plt.clf()
         color_map = []
         labels = {}
+        node_shapes = {}
 
         for node in self.graph_manager.graph.nodes:
-            if node.startswith("R"):  # Resource node
-                instances = self.graph_manager.resource_instances[node]["available"]
-                total = self.graph_manager.resource_instances[node]["total"]
-                labels[node] = f"{node}\n{'●' * instances}{'○' * (total - instances)}"  # Filled & empty dots
+            if node.startswith("R"):  # Resource node as rectangle
+                labels[node] = node
                 color_map.append("red")
-            else:  # Process node
+                node_shapes[node] = "s"
+            else:  # Process node as circle
                 labels[node] = node
                 color_map.append("blue")
+                node_shapes[node] = "o"
 
         pos = nx.spring_layout(self.graph_manager.graph)
-        nx.draw(self.graph_manager.graph, pos, with_labels=True, labels=labels, 
-                node_color=color_map, edge_color="gray",
-                node_size=2000, font_size=10, arrowsize=20)
+
+        # Draw nodes with different shapes
+        for shape in set(node_shapes.values()):
+            nx.draw_networkx_nodes(self.graph_manager.graph, pos, nodelist=[n for n in self.graph_manager.graph.nodes if node_shapes[n] == shape],
+                                   node_shape=shape, node_color=[color_map[i] for i, n in enumerate(self.graph_manager.graph.nodes) if node_shapes[n] == shape],
+                                   node_size=2000)
+
+        # Draw normal edges (allocations)
+        nx.draw_networkx_edges(self.graph_manager.graph, pos, edgelist=[(u, v) for u, v in self.graph_manager.graph.edges if self.graph_manager.graph.edges[u, v].get('style') != 'dashed'],
+                               edge_color="gray", arrowsize=20)
+
+        # Draw request edges in orange dashed style
+        nx.draw_networkx_edges(self.graph_manager.graph, pos, edgelist=[(u, v) for u, v in self.graph_manager.graph.edges if self.graph_manager.graph.edges[u, v].get('style') == 'dashed'],
+                               edge_color="orange", style='dashed', arrowsize=20)
+
+        nx.draw_networkx_labels(self.graph_manager.graph, pos, labels, font_size=10)
         plt.show()
+
