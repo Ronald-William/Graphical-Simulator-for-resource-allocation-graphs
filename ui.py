@@ -44,9 +44,11 @@ class ResourceAllocationSimulator(QMainWindow):
             ("Add Process", self.add_process),
             ("Add Resource", self.add_resource),
             ("Allocate/Request", self.manage_allocation),
-            ("Release Resource", self.release_resource),
-            ("Check Deadlock", self.detect_deadlock),
-            ("Show Graph", self.show_graph)
+            ("Release Allocation", self.release_resource),
+            ("Remove Resource", self.remove_resource),
+            ("Check Deadlock", self.detect_deadlock)
+            
+            
         ]
 
         row, col = 1, 0
@@ -122,6 +124,22 @@ class ResourceAllocationSimulator(QMainWindow):
             QMessageBox.information(self, "Released", f"Released {resource} from {process}")
 
         self.show_graph()  # Refresh graph after release
+    
+    def remove_resource(self):
+        resources = [n for n in self.graph_manager.graph.nodes if n.startswith("R")]
+        if not resources:
+            QMessageBox.warning(self, "Error", "No resources available to remove")
+            return
+
+        resource, ok = QInputDialog.getItem(self, "Remove Resource", "Select Resource:", resources, 0, False)
+        if not ok:
+            return
+
+        success = self.graph_manager.remove_resource(resource)
+        if success:
+            QMessageBox.information(self, "Resource Removed", f"{resource} has been removed")
+            self.show_graph()
+
 
     def detect_deadlock(self):
         try:
@@ -186,5 +204,6 @@ class ResourceAllocationSimulator(QMainWindow):
         plt.pause(0.1)  # Allow real-time updates
         plt.draw()
         plt.show()
+
 
 
