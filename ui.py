@@ -46,9 +46,8 @@ class ResourceAllocationSimulator(QMainWindow):
             ("Allocate/Request", self.manage_allocation),
             ("Release Allocation", self.release_resource),
             ("Remove Resource", self.remove_resource),
+            ("Remove Process", self.remove_process),
             ("Check Deadlock", self.detect_deadlock)
-            
-            
         ]
 
         row, col = 1, 0
@@ -65,15 +64,18 @@ class ResourceAllocationSimulator(QMainWindow):
 
         layout.addWidget(title, 0, 0, 1, 3)
 
-        # Ensure buttons expand fully
-        for i in range(row + 1):
-            layout.setRowStretch(i, 1)
+        # Shift buttons slightly upward by reducing bottom row stretch
+        for i in range(row):
+            layout.setRowStretch(i, 2)  # Increase stretch factor for upper rows
+        layout.setRowStretch(row, 0)   # Reduce stretch for last row to pull buttons up
+
         for i in range(3):
             layout.setColumnStretch(i, 1)
 
         central_widget.setStyleSheet("background-color: #2E2E2E;")  # Dark background for better contrast
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
+
 
     def add_process(self):
         process_id = self.graph_manager.add_process()
@@ -140,6 +142,24 @@ class ResourceAllocationSimulator(QMainWindow):
             QMessageBox.information(self, "Resource Removed", f"{resource} has been removed")
             self.show_graph()
 
+    def remove_process(self):
+        processes = [n for n in self.graph_manager.graph.nodes if n.startswith("P")]
+        if not processes:
+            QMessageBox.warning(self, "Error", "No processes available to remove")
+            return
+
+        process, ok = QInputDialog.getItem(self, "Remove Process", "Select Process:", processes, 0, False)
+        if not ok:
+            return
+
+        success = self.graph_manager.remove_process(process)
+        if success:
+            QMessageBox.information(self, "Process Removed", f"{process} has been removed")
+            self.show_graph()
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to remove {process}")
+
+
 
     def detect_deadlock(self):
         try:
@@ -162,11 +182,11 @@ class ResourceAllocationSimulator(QMainWindow):
         for node in self.graph_manager.graph.nodes:
             if node.startswith("R"):  # Resource node
                 labels[node] = f"{node} ({resource_instances.get(node, 0)})"
-                color_map.append("red")
+                color_map.append("#9370DB")
                 node_shapes[node] = "s"
             else:  # Process node
                 labels[node] = node
-                color_map.append("blue")
+                color_map.append("#44b0f2")
                 node_shapes[node] = "o"
 
         pos = nx.spring_layout(self.graph_manager.graph)
@@ -193,8 +213,8 @@ class ResourceAllocationSimulator(QMainWindow):
 
         # **Add Legend**
         legend_labels = {
-            "Process": plt.Line2D([0], [0], marker='o', color='w', markersize=10, markerfacecolor="blue"),
-            "Resource": plt.Line2D([0], [0], marker='s', color='w', markersize=10, markerfacecolor="red"),
+            "Process": plt.Line2D([0], [0], marker='o', color='w', markersize=10, markerfacecolor="#44b0f2"),
+            "Resource": plt.Line2D([0], [0], marker='s', color='w', markersize=10, markerfacecolor="#9370DB"),
             "Allocation Edge": plt.Line2D([0], [0], color="gray", lw=2),
             "Request Edge": plt.Line2D([0], [0], color="orange", lw=2, linestyle="dashed")
         }
@@ -204,6 +224,5 @@ class ResourceAllocationSimulator(QMainWindow):
         plt.pause(0.1)  # Allow real-time updates
         plt.draw()
         plt.show()
-
 
 
