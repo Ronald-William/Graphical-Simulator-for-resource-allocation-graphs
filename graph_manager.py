@@ -56,3 +56,11 @@ class GraphManager:
 
             return True
         return False
+    
+    def remove_resource(self, resource):
+        if resource in self.resource_instances:
+            del self.resource_instances[resource]  # Remove resource record
+            self.graph.remove_node(resource)  # Remove from the graph
+            return True
+        return False
+
