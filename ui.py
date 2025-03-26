@@ -139,15 +139,14 @@ class ResourceAllocationSimulator(QMainWindow):
         labels = {}
         node_shapes = {}
 
-        # Extract resource instance counts
         resource_instances = self.graph_manager.resource_instances
 
         for node in self.graph_manager.graph.nodes:
-            if node.startswith("R"):  # Resource node as rectangle
-                labels[node] = f"{node} ({resource_instances.get(node, 0)})"  # Show count
+            if node.startswith("R"):  # Resource node
+                labels[node] = f"{node} ({resource_instances.get(node, 0)})"
                 color_map.append("red")
                 node_shapes[node] = "s"
-            else:  # Process node as circle
+            else:  # Process node
                 labels[node] = node
                 color_map.append("blue")
                 node_shapes[node] = "o"
@@ -167,12 +166,23 @@ class ResourceAllocationSimulator(QMainWindow):
                                edgelist=[(u, v) for u, v in self.graph_manager.graph.edges if self.graph_manager.graph.edges[u, v].get('style') != 'dashed'],
                                edge_color="gray", arrowsize=20)
 
-        # Draw request edges in orange dashed style
+        # Draw request edges (dashed orange)
         nx.draw_networkx_edges(self.graph_manager.graph, pos, 
                                edgelist=[(u, v) for u, v in self.graph_manager.graph.edges if self.graph_manager.graph.edges[u, v].get('style') == 'dashed'],
                                edge_color="orange", style='dashed', arrowsize=20)
 
         nx.draw_networkx_labels(self.graph_manager.graph, pos, labels, font_size=10)
+
+        # **Add Legend**
+        legend_labels = {
+            "Process": plt.Line2D([0], [0], marker='o', color='w', markersize=10, markerfacecolor="blue"),
+            "Resource": plt.Line2D([0], [0], marker='s', color='w', markersize=10, markerfacecolor="red"),
+            "Allocation Edge": plt.Line2D([0], [0], color="gray", lw=2),
+            "Request Edge": plt.Line2D([0], [0], color="orange", lw=2, linestyle="dashed")
+        }
+
+        plt.legend(handles=legend_labels.values(), labels=legend_labels.keys(), loc="upper right")
+
         plt.pause(0.1)  # Allow real-time updates
         plt.draw()
         plt.show()
