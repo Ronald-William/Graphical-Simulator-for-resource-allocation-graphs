@@ -63,4 +63,19 @@ class GraphManager:
             self.graph.remove_node(resource)  # Remove from the graph
             return True
         return False
+    
+    def remove_process(self, process):
+        if process in self.allocations:
+            # Release all allocated resources
+            allocated_resources = list(self.allocations[process].keys())  # Copy keys to avoid mutation issues
+            for resource in allocated_resources:
+                self.release_resource(resource, process)
 
+            del self.allocations[process]  # Remove process record
+
+        if process in self.graph.nodes:
+            self.graph.remove_node(process)  # Remove process from graph
+            return True
+
+        return False
+    
